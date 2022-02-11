@@ -15,34 +15,39 @@ func main() {
 	client, err := digdagGo.New("https://api-workflow.treasuredata.com/api", tdToken, nil)
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(2)
 	}
-	projects, err := client.GetProjects(ctx, "mikio-test")
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Printf("%s\n", projects.Projects[0].DeletedAt)
-
-	projectWithId, err := client.GetProjectsWithID(ctx, "590006")
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Printf("%s\n", projectWithId.ID)
 
 	currentPath, err := filepath.Abs(".")
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	project, err := client.PutProject(ctx, fmt.Sprintf("%s/testFiles/sample/sample.tar.gz", currentPath), "mikio-test")
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(2)
 	}
 	fmt.Println(project.ID)
 
-	ok, err := client.DeleteProjectsWithID(ctx, "590006")
+	projects, err := client.GetProjects(ctx, "mikio-test")
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(2)
 	}
-	fmt.Println(ok.ID)
+	fmt.Printf("%s\n", projects.Projects[0].Name)
+
+	projectWithId, err := client.GetProjectsWithID(ctx, project.ID)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	fmt.Printf("%s\n", projectWithId.Revision)
+
+	client.DownloadProjectFiles(ctx, project.ID, project.Revision, fmt.Sprintf("%s/test", currentPath), true)
+	// ok, err := client.DeleteProjectsWithID(ctx, project.ID)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// fmt.Println(ok.ID)
 
 }

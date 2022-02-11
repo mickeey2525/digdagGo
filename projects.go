@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +29,29 @@ type Projects struct {
 	Projects []Project `json:"projects"`
 }
 
+type Revisions struct {
+	Revisions []Revision `json:"revisions"`
+}
+type User struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	IPAddress string `json:"ip_address"`
+}
+type Td struct {
+	User User `json:"user"`
+}
+type UserInfo struct {
+	Td Td `json:"td"`
+}
+type Revision struct {
+	Revision    string    `json:"revision"`
+	CreatedAt   time.Time `json:"createdAt"`
+	ArchiveType string    `json:"archiveType"`
+	ArchiveMd5  string    `json:"archiveMd5"`
+	UserInfo    UserInfo  `json:"userInfo"`
+}
+
 func (c *Client) GetProjects(ctx context.Context, projectName string) (*Projects, error) {
 	parameters := map[string]string{}
 	if projectName != "" {
@@ -34,11 +59,11 @@ func (c *Client) GetProjects(ctx context.Context, projectName string) (*Projects
 	}
 	req, err := c.newRequest(ctx, "GET", "projects", parameters, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -65,11 +90,11 @@ func (c *Client) GetProjectsWithID(ctx context.Context, projectId string) (*Proj
 
 	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s", projectId), nil, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -105,7 +130,7 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 
 	digFiles, err := os.Open(filepath)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer digFiles.Close()
 
@@ -147,11 +172,11 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*Project, error) {
 	req, err := c.newRequest(ctx, "DELETE", fmt.Sprintf("projects/%s", projectId), nil, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -167,9 +192,55 @@ func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*P
 		return nil, errors.New("you're not allowed to do this operation")
 	case http.StatusUnauthorized:
 		return nil, errors.New("failed to login")
+	case http.StatusNotFound:
+		return nil, errors.New("not found the project")
 	case http.StatusInternalServerError:
 		return nil, errors.New("internal server error")
 	default:
 		return nil, errors.New("unexpected error")
+	}
+}
+
+func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, destPath string, direct_download bool) error {
+	download_option := strconv.FormatBool(direct_download)
+	parameters := map[string]string{}
+
+	parameters["revision"] = revision
+	parameters["direct_donwload"] = download_option
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/archive", projectId), parameters, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fmt.Println("-----Started to download------")
+		if destPath == "" {
+			destPath, err = filepath.Abs(".")
+			if err != nil {
+				return err
+			}
+		}
+		er := c.unarchive(destPath, resp.Body)
+		if er != nil {
+			return er
+		}
+		fmt.Println("-----Finished-----")
+		return nil
+	case http.StatusBadRequest:
+		return fmt.Errorf("bad Request: %+v", resp.Body)
+	case http.StatusForbidden:
+		return errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return errors.New("internal server error")
+	default:
+		return errors.New("unexpected error")
 	}
 }
