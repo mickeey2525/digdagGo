@@ -1,7 +1,9 @@
-package digdagGo
+package digdaggo
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -242,5 +244,193 @@ func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, 
 		return errors.New("internal server error")
 	default:
 		return errors.New("unexpected error")
+	}
+}
+
+func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revisions, error) {
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/revisions", projectId), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var revisions Revisions
+		err := c.decodeBody(resp, &revisions)
+		if err != nil {
+			return nil, err
+		}
+		return &revisions, nil
+	case http.StatusBadRequest:
+		return nil, errors.New("bad request")
+	case http.StatusForbidden:
+		return nil, errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return nil, errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return nil, errors.New("internal server error")
+	default:
+		return nil, errors.New("unexpected error")
+	}
+}
+
+type Schedules struct {
+	Schedule []Schedule `json:"schedules"`
+}
+type ShortProject struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+type Workflow struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+type Schedule struct {
+	ID               string       `json:"id"`
+	ShortProject     ShortProject `json:"project"`
+	Workflow         Workflow     `json:"workflow"`
+	NextRunTime      time.Time    `json:"nextRunTime"`
+	NextScheduleTime time.Time    `json:"nextScheduleTime"`
+	DisabledAt       interface{}  `json:"disabledAt"`
+}
+
+func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, last_id string) (*Schedules, error) {
+	parameters := map[string]string{}
+	if workflow != "" {
+		parameters["workflow"] = workflow
+	}
+	if last_id != "" {
+		parameters["last_id"] = last_id
+	}
+
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/schedules", projectId), parameters, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var schedules Schedules
+		err := c.decodeBody(resp, &schedules)
+		if err != nil {
+			return nil, err
+		}
+		return &schedules, nil
+	case http.StatusBadRequest:
+		return nil, errors.New("bad request")
+	case http.StatusForbidden:
+		return nil, errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return nil, errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return nil, errors.New("internal server error")
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("not found error %+v", err)
+	default:
+		return nil, fmt.Errorf("unexpected error: %+v", err)
+	}
+}
+
+type Secrets struct {
+	Secrets []interface{} `json:"secrets"`
+}
+
+func (c *Client) GetSecrets(ctx context.Context, projectId string) (*Secrets, error) {
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets", projectId), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var secrets Secrets
+		err := c.decodeBody(resp, &secrets)
+		if err != nil {
+			return nil, err
+		}
+		return &secrets, nil
+	case http.StatusBadRequest:
+		return nil, errors.New("bad request")
+	case http.StatusForbidden:
+		return nil, errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return nil, errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return nil, errors.New("internal server error")
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("not found error %+v", err)
+	default:
+		return nil, fmt.Errorf("unexpected error: %+v", err)
+	}
+}
+
+func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[string]string) error {
+	jsn, err := json.Marshal(secrets)
+	if err != nil {
+		return err
+	}
+	req, err := c.newRequest(ctx, "PUT", fmt.Sprintf("projects/%s/secrets", projectId), nil, bytes.NewReader(jsn))
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusBadRequest:
+		return errors.New("bad request")
+	case http.StatusForbidden:
+		return errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return errors.New("internal server error")
+	case http.StatusNotFound:
+		return fmt.Errorf("not found error %+v", err)
+	default:
+		return fmt.Errorf("unexpected error: %+v", err)
+	}
+}
+
+func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error {
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets/%s", projectId, key), nil, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusBadRequest:
+		return errors.New("bad request")
+	case http.StatusForbidden:
+		return errors.New("you're not allowed to do this operation")
+	case http.StatusUnauthorized:
+		return errors.New("failed to login")
+	case http.StatusInternalServerError:
+		return errors.New("internal server error")
+	case http.StatusNotFound:
+		return fmt.Errorf("not found error %+v", err)
+	default:
+		return fmt.Errorf("unexpected error: %+v", err)
 	}
 }

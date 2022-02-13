@@ -1,1 +1,1 @@
-package digdagGo
+package digdaggo

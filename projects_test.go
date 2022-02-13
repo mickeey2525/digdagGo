@@ -1,4 +1,4 @@
-package digdagGo
+package digdaggo
 
 import (
 	"context"
