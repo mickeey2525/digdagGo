@@ -62,7 +62,20 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	fmt.Printf("%+v", secrets.Secrets...)
+	fmt.Printf("%+v\n", secrets.Secrets...)
+
+	sessions, err := client.GetProjectSessions(ctx, project.ID, "", "", "")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	fmt.Printf("%+v\n", sessions)
+	workflows, err := client.GetProjectWorkflows(ctx, project.ID, project.Revision, "")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	fmt.Printf("the workflos are %+v\n", workflows)
 	//client.DownloadProjectFiles(ctx, project.ID, project.Revision, fmt.Sprintf("%s/test", currentPath), true)
 	// ok, err := client.DeleteProjectsWithID(ctx, project.ID)
 	// if err != nil {

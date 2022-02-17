@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -67,29 +65,19 @@ func (c *Client) GetProjects(ctx context.Context, projectName string) (*Projects
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var projects Projects
-		err := c.decodeBody(resp, &projects)
-		if err != nil {
-			return nil, err
-		}
-		return &projects, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	default:
-		return nil, errors.New("unexpected error")
+	checkError := c.checkHttpResponseCode(resp)
+	if checkError != nil {
+		return nil, checkError
 	}
+	var projects Projects
+	err = c.decodeBody(resp, &projects)
+	if err != nil {
+		return nil, err
+	}
+	return &projects, nil
 }
 
 func (c *Client) GetProjectsWithID(ctx context.Context, projectId string) (*Project, error) {
-
 	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s", projectId), nil, nil)
 	if err != nil {
 		return nil, err
@@ -98,25 +86,16 @@ func (c *Client) GetProjectsWithID(ctx context.Context, projectId string) (*Proj
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var project Project
-		err := c.decodeBody(resp, &project)
-		if err != nil {
-			return nil, err
-		}
-		return &project, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	default:
-		return nil, errors.New("unexpected error")
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var project Project
+	err = c.decodeBody(resp, &project)
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
 }
 
 func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (*Project, error) {
@@ -145,30 +124,16 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var project Project
-		err := c.decodeBody(resp, &project)
-		if err != nil {
-			return nil, err
-		}
-		return &project, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("internal server error. %s", string(bodyBytes))
-	default:
-		return nil, errors.New("unexpected error")
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var project Project
+	err = c.decodeBody(resp, &project)
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
 }
 
 func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*Project, error) {
@@ -180,27 +145,17 @@ func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*P
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var project Project
-		err := c.decodeBody(resp, &project)
-		if err != nil {
-			return nil, err
-		}
-		return &project, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusNotFound:
-		return nil, errors.New("not found the project")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	default:
-		return nil, errors.New("unexpected error")
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var project Project
+	err = c.decodeBody(resp, &project)
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
 }
 
 func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, destPath string, direct_download bool) error {
@@ -218,33 +173,23 @@ func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, 
 		return err
 	}
 	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		fmt.Println("-----Started to download------")
-		if destPath == "" {
-			destPath, err = filepath.Abs(".")
-			if err != nil {
-				return err
-			}
-		}
-		er := c.unarchive(destPath, resp.Body)
-		if er != nil {
-			return er
-		}
-		fmt.Println("-----Finished-----")
-		return nil
-	case http.StatusBadRequest:
-		return fmt.Errorf("bad Request: %+v", resp.Body)
-	case http.StatusForbidden:
-		return errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return errors.New("internal server error")
-	default:
-		return errors.New("unexpected error")
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return checkStatus
 	}
+	fmt.Println("-----Started to download------")
+	if destPath == "" {
+		destPath, err = filepath.Abs(".")
+		if err != nil {
+			return err
+		}
+	}
+	er := c.unarchive(destPath, resp.Body)
+	if er != nil {
+		return er
+	}
+	fmt.Println("-----Finished-----")
+	return nil
 }
 
 func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revisions, error) {
@@ -256,25 +201,18 @@ func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revis
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var revisions Revisions
-		err := c.decodeBody(resp, &revisions)
-		if err != nil {
-			return nil, err
-		}
-		return &revisions, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	default:
-		return nil, errors.New("unexpected error")
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var revisions Revisions
+	err = c.decodeBody(resp, &revisions)
+	if err != nil {
+		return nil, err
+	}
+	return &revisions, nil
+
 }
 
 type Schedules struct {
@@ -314,27 +252,17 @@ func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, 
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var schedules Schedules
-		err := c.decodeBody(resp, &schedules)
-		if err != nil {
-			return nil, err
-		}
-		return &schedules, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	case http.StatusNotFound:
-		return nil, fmt.Errorf("not found error %+v", err)
-	default:
-		return nil, fmt.Errorf("unexpected error: %+v", err)
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var schedules Schedules
+	err = c.decodeBody(resp, &schedules)
+	if err != nil {
+		return nil, err
+	}
+	return &schedules, nil
 }
 
 type Secrets struct {
@@ -350,27 +278,18 @@ func (c *Client) GetSecrets(ctx context.Context, projectId string) (*Secrets, er
 	if err != nil {
 		return nil, err
 	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var secrets Secrets
-		err := c.decodeBody(resp, &secrets)
-		if err != nil {
-			return nil, err
-		}
-		return &secrets, nil
-	case http.StatusBadRequest:
-		return nil, errors.New("bad request")
-	case http.StatusForbidden:
-		return nil, errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return nil, errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return nil, errors.New("internal server error")
-	case http.StatusNotFound:
-		return nil, fmt.Errorf("not found error %+v", err)
-	default:
-		return nil, fmt.Errorf("unexpected error: %+v", err)
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
 	}
+	var secrets Secrets
+	err = c.decodeBody(resp, &secrets)
+	if err != nil {
+		return nil, err
+	}
+	return &secrets, nil
+
 }
 
 func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[string]string) error {
@@ -388,22 +307,11 @@ func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[s
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return nil
-	case http.StatusBadRequest:
-		return errors.New("bad request")
-	case http.StatusForbidden:
-		return errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return errors.New("internal server error")
-	case http.StatusNotFound:
-		return fmt.Errorf("not found error %+v", err)
-	default:
-		return fmt.Errorf("unexpected error: %+v", err)
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return checkStatus
 	}
+	return nil
 }
 
 func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error {
@@ -416,21 +324,126 @@ func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error 
 		return err
 	}
 	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return nil
-	case http.StatusBadRequest:
-		return errors.New("bad request")
-	case http.StatusForbidden:
-		return errors.New("you're not allowed to do this operation")
-	case http.StatusUnauthorized:
-		return errors.New("failed to login")
-	case http.StatusInternalServerError:
-		return errors.New("internal server error")
-	case http.StatusNotFound:
-		return fmt.Errorf("not found error %+v", err)
-	default:
-		return fmt.Errorf("unexpected error: %+v", err)
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return checkStatus
 	}
+	return nil
+}
+
+// List of the Sessions
+type Sessions struct {
+	Sessions []Session `json:"sessions"`
+}
+
+// TD workflow customized Parameter
+type Params struct {
+	TdAttemptInitiatedUserID    int    `json:"_td_.attempt_initiated_user_id"`
+	TdAttemptInitiatedUserEmail string `json:"_td_.attempt_initiated_user_email"`
+	TdAttemptInitiatedUserIP    string `json:"_td_.attempt_initiated_user_ip"`
+	TdRevisionCreatedUserID     int    `json:"_td_.revision_created_user_id"`
+	TdRevisionCreatedUserEmail  string `json:"_td_.revision_created_user_email"`
+	TdRevisionCreatedUserIP     string `json:"_td_.revision_created_user_ip"`
+}
+
+// The Last Attepmt which is contained in Session Object
+type LastAttempt struct {
+	ID               string      `json:"id"`
+	RetryAttemptName interface{} `json:"retryAttemptName"`
+	Done             bool        `json:"done"`
+	Success          bool        `json:"success"`
+	CancelRequested  bool        `json:"cancelRequested"`
+	Params           Params      `json:"params"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	FinishedAt       time.Time   `json:"finishedAt"`
+}
+
+// This struct embodies Session
+type Session struct {
+	ID          string       `json:"id"`
+	Project     ShortProject `json:"project"`
+	Workflow    Workflow     `json:"workflow"`
+	SessionUUID string       `json:"sessionUuid"`
+	SessionTime time.Time    `json:"sessionTime"`
+	LastAttempt LastAttempt  `json:"lastAttempt"`
+}
+
+func (c *Client) GetProjectSessions(ctx context.Context, projectId, workflowName, last_id, pageSize string) (*Sessions, error) {
+	parameters := map[string]string{}
+	if workflowName != "" {
+		parameters["workflow"] = workflowName
+	}
+	if last_id != "" {
+		parameters["last_id"] = last_id
+	}
+	if pageSize != "" {
+		parameters["page_size"] = pageSize
+	}
+
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/sessions", projectId), parameters, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
+	}
+
+	var sessions Sessions
+	err = c.decodeBody(resp, &sessions)
+	if err != nil {
+		return nil, err
+	}
+	return &sessions, nil
+}
+
+type Workflows struct {
+	Workflows []ProjectWorkflow `json:"workflows"`
+}
+
+type Config interface{}
+
+type ProjectWorkflow struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Project  Project `json:"project"`
+	Revision string  `json:"revision"`
+	Timezone string  `json:"timezone"`
+	Config   Config  `json:"config"`
+}
+
+func (c *Client) GetProjectWorkflows(ctx context.Context, projectId, revision, workflowName string) (*Workflows, error) {
+	parameters := map[string]string{}
+	if revision != "" {
+		parameters["workflow"] = revision
+	}
+	if workflowName != "" {
+		parameters["name"] = workflowName
+	}
+
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/workflows", projectId), parameters, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
+	}
+
+	var workflows Workflows
+	err = c.decodeBody(resp, &workflows)
+	if err != nil {
+		return nil, err
+	}
+	return &workflows, nil
 }

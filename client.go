@@ -15,6 +15,9 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
+
+	"github.com/hashicorp/jsonapi"
 )
 
 type Client struct {
@@ -153,4 +156,48 @@ func (c *Client) unarchive(dst string, r io.Reader) error {
 		}
 		return nil
 	}
+}
+
+func (c *Client) checkHttpResponseCode(res *http.Response) error {
+	if res.StatusCode >= 200 && res.StatusCode <= 299 {
+		return nil
+	}
+
+	var errs []string
+	var err error
+	switch res.StatusCode {
+	case 401:
+		return ErrUnauthorized
+	case 403:
+		return ErrForbidden
+	case 404:
+		return ErrNotFound
+	}
+
+	errs, err = decodeErrorPayload(res)
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf(strings.Join(errs, "\n"))
+}
+
+func decodeErrorPayload(r *http.Response) ([]string, error) {
+	// decode the error payload
+	var errs []string
+	errPayload := &jsonapi.ErrorsPayload{}
+	err := json.NewDecoder(r.Body).Decode(errPayload)
+	if err != nil || len(errPayload.Errors) == 0 {
+		return errs, fmt.Errorf(r.Status)
+	}
+
+	// Parse and format the errors.
+	for _, e := range errPayload.Errors {
+		if e.Detail == "" {
+			errs = append(errs, e.Title)
+		} else {
+			errs = append(errs, fmt.Sprintf("%s\n\n%s", e.Title, e.Detail))
+		}
+	}
+
+	return errs, nil
 }
