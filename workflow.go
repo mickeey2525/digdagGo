@@ -6,41 +6,33 @@ import (
 )
 
 type WorkflowsList struct {
-	Workflows []struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		Project struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"project"`
-		Revision string      `json:"revision"`
-		Timezone string      `json:"timezone"`
-		Config   interface{} `json:"config"`
-	} `json:"workflows"`
+	Workflows []DetailedWorkflow `json:"workflows"`
+}
+
+type ProjectInWorkflow struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type DetailedWorkflow struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Project struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	} `json:"project"`
-	Revision string      `json:"revision"`
-	Timezone string      `json:"timezone"`
-	Config   interface{} `json:"config"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Project  ProjectInWorkflow `json:"project"`
+	Revision string            `json:"revision"`
+	Timezone string            `json:"timezone"`
+	Config   interface{}       `json:"config"`
 }
 
-func (c *Client) GetWorkflowList(ctx context.Context, last_id, count string) (*WorkflowsList, error) {
-	paramters := map[string]string{}
-	if last_id != "" {
-		paramters["last_id"] = last_id
+func (c *Client) GetWorkflowList(ctx context.Context, lastId, count string) (*WorkflowsList, error) {
+	param := map[string]string{}
+	if lastId != "" {
+		param["last_id"] = lastId
 	}
 	if count != "" {
-		paramters["count"] = count
+		param["count"] = count
 	}
 
-	req, err := c.newRequest(ctx, "GET", "workflows", paramters, nil)
+	req, err := c.newRequest(ctx, "GET", "workflows", param, nil)
 	if err != nil {
 		return nil, err
 	}
