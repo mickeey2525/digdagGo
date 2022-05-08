@@ -18,7 +18,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	currentPath, err := filepath.Abs(".")
+	currentPath, err := filepath.Abs("./")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -76,6 +76,12 @@ func main() {
 		os.Exit(2)
 	}
 	fmt.Printf("the workflos are %+v\n", workflows)
+	attempts, err := client.GetAttempts(ctx, project.Name, "", "", "", false)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	fmt.Printf("the attemts are %+v\n", attempts)
 	//client.DownloadProjectFiles(ctx, project.ID, project.Revision, fmt.Sprintf("%s/test", currentPath), true)
 	// ok, err := client.DeleteProjectsWithID(ctx, project.ID)
 	// if err != nil {

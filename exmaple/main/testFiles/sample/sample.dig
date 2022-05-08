@@ -16,4 +16,3 @@ timezone: UTC
 
 +teardown:
   echo>: finish ${session_time}
-
