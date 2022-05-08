@@ -5,30 +5,36 @@ import (
 	"time"
 )
 
+type ProjectInAttempt struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type WorkflowInAttempt struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Attempt struct {
+	Status           string            `json:"status"`
+	ID               string            `json:"id"`
+	Index            int               `json:"index"`
+	Project          ProjectInAttempt  `json:"project"`
+	Workflow         WorkflowInAttempt `json:"workflow"`
+	SessionID        string            `json:"sessionId"`
+	SessionUUID      string            `json:"sessionUuid"`
+	SessionTime      time.Time         `json:"sessionTime"`
+	RetryAttemptName interface{}       `json:"retryAttemptName"`
+	Done             bool              `json:"done"`
+	Success          bool              `json:"success"`
+	CancelRequested  bool              `json:"cancelRequested"`
+	Params           interface{}       `json:"params"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	FinishedAt       time.Time         `json:"finishedAt"`
+}
+
 type AttemptList struct {
-	Attempts []struct {
-		Status  string `json:"status"`
-		ID      string `json:"id"`
-		Index   int    `json:"index"`
-		Project struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"project"`
-		Workflow struct {
-			Name string `json:"name"`
-			ID   string `json:"id"`
-		} `json:"workflow"`
-		SessionID        string      `json:"sessionId"`
-		SessionUUID      string      `json:"sessionUuid"`
-		SessionTime      time.Time   `json:"sessionTime"`
-		RetryAttemptName string      `json:"retryAttemptName"`
-		Done             bool        `json:"done"`
-		Success          bool        `json:"success"`
-		CancelRequested  bool        `json:"cancelRequested"`
-		Params           interface{} `json:"params"`
-		CreatedAt        time.Time   `json:"createdAt"`
-		FinishedAt       time.Time   `json:"finishedAt"`
-	} `json:"attempts"`
+	Attempts []Attempt `json:"attempts"`
 }
 
 func (c *Client) GetAttempts(ctx context.Context, projectName, workflowName, last_id, page_size string, include_retried bool) (*AttemptList, error) {
@@ -70,4 +76,24 @@ func (c *Client) GetAttempts(ctx context.Context, projectName, workflowName, las
 		return nil, err
 	}
 	return &attemptList, nil
+}
+
+type mode int
+
+const (
+	FROM mode = iota + 1
+	FAILED
+)
+
+type resume struct {
+	attemptId int64
+	mode      mode
+}
+
+type attemptBody struct {
+	sessionTime      time.Time
+	workflowId       int64
+	resume           resume
+	retryAttemptName string
+	params           interface{}
 }
