@@ -82,6 +82,12 @@ func main() {
 		os.Exit(2)
 	}
 	fmt.Printf("the attemts are %+v\n", attempts)
+	version, err := client.GetServerVersion(ctx)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	fmt.Printf("the server version is %+v\n", version)
 	//client.DownloadProjectFiles(ctx, project.ID, project.Revision, fmt.Sprintf("%s/test", currentPath), true)
 	// ok, err := client.DeleteProjectsWithID(ctx, project.ID)
 	// if err != nil {
