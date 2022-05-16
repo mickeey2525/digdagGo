@@ -36,7 +36,7 @@ func main() {
 	}
 	fmt.Println(projects.Projects[0].ID)
 
-	schedules, err := client.GetProjectsSchedules(ctx, projects.Projects[0].ID, "", "")
+	schedules, err := client.GetProjectsSchedules(ctx, "119468", "", "")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)

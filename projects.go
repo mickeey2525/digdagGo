@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -113,7 +114,12 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 	if err != nil {
 		return nil, err
 	}
-	defer digFiles.Close()
+	defer func(digFiles *os.File) {
+		err := digFiles.Close()
+		if err != nil {
+
+		}
+	}(digFiles)
 
 	req, err := c.newRequest(ctx, "PUT", "projects", parameters, digFiles)
 	if err != nil {
@@ -123,7 +129,12 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
@@ -145,7 +156,12 @@ func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*P
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
@@ -158,12 +174,12 @@ func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*P
 	return &project, nil
 }
 
-func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, destPath string, direct_download bool) error {
-	download_option := strconv.FormatBool(direct_download)
+func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, destPath string, directDownload bool) error {
+	downloadOption := strconv.FormatBool(directDownload)
 	parameters := map[string]string{}
 
 	parameters["revision"] = revision
-	parameters["direct_donwload"] = download_option
+	parameters["direct_download"] = downloadOption
 	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/archive", projectId), parameters, nil)
 	if err != nil {
 		return err
@@ -172,7 +188,12 @@ func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return checkStatus
@@ -201,7 +222,12 @@ func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revis
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
@@ -215,9 +241,6 @@ func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revis
 
 }
 
-type Schedules struct {
-	Schedule []Schedule `json:"schedules"`
-}
 type ShortProject struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -226,22 +249,14 @@ type Workflow struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
-type Schedule struct {
-	ID               string       `json:"id"`
-	ShortProject     ShortProject `json:"project"`
-	Workflow         Workflow     `json:"workflow"`
-	NextRunTime      time.Time    `json:"nextRunTime"`
-	NextScheduleTime time.Time    `json:"nextScheduleTime"`
-	DisabledAt       interface{}  `json:"disabledAt"`
-}
 
-func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, last_id string) (*Schedules, error) {
+func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, lastId string) (*ScheduleList, error) {
 	parameters := map[string]string{}
 	if workflow != "" {
 		parameters["workflow"] = workflow
 	}
-	if last_id != "" {
-		parameters["last_id"] = last_id
+	if lastId != "" {
+		parameters["last_id"] = lastId
 	}
 
 	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/schedules", projectId), parameters, nil)
@@ -252,12 +267,17 @@ func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
 	}
-	var schedules Schedules
+	var schedules ScheduleList
 	err = c.decodeBody(resp, &schedules)
 	if err != nil {
 		return nil, err
@@ -278,7 +298,12 @@ func (c *Client) GetSecrets(ctx context.Context, projectId string) (*Secrets, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
@@ -305,7 +330,12 @@ func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[s
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
@@ -323,7 +353,12 @@ func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return checkStatus
@@ -331,7 +366,7 @@ func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error 
 	return nil
 }
 
-// List of the Sessions
+// Sessions List of the Sessions
 type Sessions struct {
 	Sessions []Session `json:"sessions"`
 }
@@ -346,7 +381,7 @@ type Params struct {
 	TdRevisionCreatedUserIP     string `json:"_td_.revision_created_user_ip"`
 }
 
-// The Last Attepmt which is contained in Session Object
+// The Last Attempt which is contained in Session Object
 type LastAttempt struct {
 	ID               string      `json:"id"`
 	RetryAttemptName interface{} `json:"retryAttemptName"`
@@ -368,13 +403,13 @@ type Session struct {
 	LastAttempt LastAttempt  `json:"lastAttempt"`
 }
 
-func (c *Client) GetProjectSessions(ctx context.Context, projectId, workflowName, last_id, pageSize string) (*Sessions, error) {
+func (c *Client) GetProjectSessions(ctx context.Context, projectId, workflowName, lastId, pageSize string) (*Sessions, error) {
 	parameters := map[string]string{}
 	if workflowName != "" {
 		parameters["workflow"] = workflowName
 	}
-	if last_id != "" {
-		parameters["last_id"] = last_id
+	if lastId != "" {
+		parameters["last_id"] = lastId
 	}
 	if pageSize != "" {
 		parameters["page_size"] = pageSize
@@ -388,7 +423,12 @@ func (c *Client) GetProjectSessions(ctx context.Context, projectId, workflowName
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
@@ -434,7 +474,12 @@ func (c *Client) GetProjectWorkflows(ctx context.Context, projectId, revision, w
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
