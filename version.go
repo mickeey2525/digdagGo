@@ -10,7 +10,7 @@ type ServerVersion struct {
 }
 
 func (c *Client) GetServerVersion(ctx context.Context) (*ServerVersion, error) {
-	req, err := c.newRequest(ctx, "GET", "version", nil, nil)
+	req, err := c.newRequest(ctx, "GET", "version", nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (c *Client) GetServerCompatibility(ctx context.Context, cliVersion string) 
 	} else {
 		return nil, errors.New("client version must be specified")
 	}
-	req, err := c.newRequest(ctx, "GET", "version/check", param, nil)
+	req, err := c.newRequest(ctx, "GET", "version/check", param, nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -58,7 +58,7 @@ func (c *Client) GetProjects(ctx context.Context, projectName string) (*Projects
 	if projectName != "" {
 		parameters["name"] = projectName
 	}
-	req, err := c.newRequest(ctx, "GET", "projects", parameters, nil)
+	req, err := c.newRequest(ctx, "GET", "projects", parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *Client) GetProjects(ctx context.Context, projectName string) (*Projects
 }
 
 func (c *Client) GetProjectsWithID(ctx context.Context, projectId string) (*Project, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s", projectId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s", projectId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,9 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 		}
 	}(digFiles)
 
-	req, err := c.newRequest(ctx, "PUT", "projects", parameters, digFiles)
+	header := map[string]string{"content-type": "application/gzip"}
+
+	req, err := c.newRequest(ctx, "PUT", "projects", parameters, digFiles, header)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +150,7 @@ func (c *Client) PutProject(ctx context.Context, filepath, projectName string) (
 }
 
 func (c *Client) DeleteProjectsWithID(ctx context.Context, projectId string) (*Project, error) {
-	req, err := c.newRequest(ctx, "DELETE", fmt.Sprintf("projects/%s", projectId), nil, nil)
+	req, err := c.newRequest(ctx, "DELETE", fmt.Sprintf("projects/%s", projectId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +182,7 @@ func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, 
 
 	parameters["revision"] = revision
 	parameters["direct_download"] = downloadOption
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/archive", projectId), parameters, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/archive", projectId), parameters, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -214,7 +216,7 @@ func (c *Client) DownloadProjectFiles(ctx context.Context, projectId, revision, 
 }
 
 func (c *Client) GetListRevisions(ctx context.Context, projectId string) (*Revisions, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/revisions", projectId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/revisions", projectId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +261,7 @@ func (c *Client) GetProjectsSchedules(ctx context.Context, projectId, workflow, 
 		parameters["last_id"] = lastId
 	}
 
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/schedules", projectId), parameters, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/schedules", projectId), parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +292,7 @@ type Secrets struct {
 }
 
 func (c *Client) GetSecrets(ctx context.Context, projectId string) (*Secrets, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets", projectId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets", projectId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +324,7 @@ func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[s
 	if err != nil {
 		return err
 	}
-	req, err := c.newRequest(ctx, "PUT", fmt.Sprintf("projects/%s/secrets", projectId), nil, bytes.NewReader(jsn))
+	req, err := c.newRequest(ctx, "PUT", fmt.Sprintf("projects/%s/secrets", projectId), nil, bytes.NewReader(jsn), nil)
 	if err != nil {
 		return err
 	}
@@ -345,7 +347,7 @@ func (c *Client) PutSecrets(ctx context.Context, projectId string, secrets map[s
 }
 
 func (c *Client) DeleteSecret(ctx context.Context, projectId, key string) error {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets/%s", projectId, key), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/secrets/%s", projectId, key), nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -415,7 +417,7 @@ func (c *Client) GetProjectSessions(ctx context.Context, projectId, workflowName
 		parameters["page_size"] = pageSize
 	}
 
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/sessions", projectId), parameters, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/sessions", projectId), parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +468,7 @@ func (c *Client) GetProjectWorkflows(ctx context.Context, projectId, revision, w
 		parameters["name"] = workflowName
 	}
 
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/workflows", projectId), parameters, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("projects/%s/workflows", projectId), parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}

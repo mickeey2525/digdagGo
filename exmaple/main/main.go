@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -94,5 +95,11 @@ func main() {
 	// 	fmt.Println(err)
 	// }
 	// fmt.Println(ok.ID)
-
+	sessionTime := time.Now()
+	params := struct{}{}
+	invokeAttempt, err := client.StartAttempt(ctx, params, 12367598, sessionTime)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(invokeAttempt)
 }

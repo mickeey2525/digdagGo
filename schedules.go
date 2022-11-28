@@ -33,7 +33,7 @@ func (c *Client) GetSchedules(ctx context.Context, lastId string) (*ScheduleList
 	if lastId != "" {
 		parameters["last_id"] = lastId
 	}
-	req, err := c.newRequest(ctx, "GET", "schedules", parameters, nil)
+	req, err := c.newRequest(ctx, "GET", "schedules", parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (c *Client) GetSchedules(ctx context.Context, lastId string) (*ScheduleList
 }
 
 func (c *Client) GetScheduleWithId(ctx context.Context, scheduleId int) (*Schedule, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("schedules/%d", scheduleId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("schedules/%d", scheduleId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (c *Client) GetScheduleWithId(ctx context.Context, scheduleId int) (*Schedu
 }
 
 func (c *Client) DisableScheduleWithId(ctx context.Context, scheduleId int) (*Schedule, error) {
-	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, nil)
+	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ type backFill struct {
 }
 
 func newBackFill(fromTime int64, attemptName string, dryRun bool, count int32) (*backFill, error) {
-	if attemptName != "" {
+	if attemptName == "" {
 		return nil, errors.New("attempt name must not be empty")
 	}
 	return &backFill{
@@ -123,7 +123,7 @@ func (c *Client) BackfillSchedule(ctx context.Context, scheduleId, fromTime int6
 	if err != nil {
 		return nil, err
 	}
-	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd))
+	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (c *Client) BackfillSchedule(ctx context.Context, scheduleId, fromTime int6
 }
 
 func (c *Client) EnableSchedule(ctx context.Context, scheduleId int, skipSchedule bool, nextTime string) (*Schedule, error) {
-	if nextTime != "" {
+	if nextTime == "" {
 		return nil, errors.New("nextTime must not be empty")
 	}
 	nextSched := struct {
@@ -158,7 +158,7 @@ func (c *Client) EnableSchedule(ctx context.Context, scheduleId int, skipSchedul
 	if err != nil {
 		return nil, err
 	}
-	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd))
+	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (c *Client) EnableSchedule(ctx context.Context, scheduleId int, skipSchedul
 }
 
 func (c *Client) SkipSchedule(ctx context.Context, scheduleId, nextRunTime, fromTime int64, dryRun bool, nextTime string, count int32) (*Schedule, error) {
-	if nextTime != "" {
+	if nextTime == "" {
 		return nil, errors.New("nextTime must not be empty")
 	}
 	skipSched := struct {
@@ -199,7 +199,7 @@ func (c *Client) SkipSchedule(ctx context.Context, scheduleId, nextRunTime, from
 	if err != nil {
 		return nil, err
 	}
-	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd))
+	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("schedules/%d/disable", scheduleId), nil, bytes.NewBuffer(bd), nil)
 	if err != nil {
 		return nil, err
 	}

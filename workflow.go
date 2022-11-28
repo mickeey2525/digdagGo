@@ -32,7 +32,7 @@ func (c *Client) GetWorkflowList(ctx context.Context, lastId, count string) (*Wo
 		param["count"] = count
 	}
 
-	req, err := c.newRequest(ctx, "GET", "workflows", param, nil)
+	req, err := c.newRequest(ctx, "GET", "workflows", param, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (c *Client) GetWorkflowList(ctx context.Context, lastId, count string) (*Wo
 }
 
 func (c *Client) GetWorkflowWithID(ctx context.Context, workflowId string) (*DetailedWorkflow, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("workflows/%s", workflowId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("workflows/%s", workflowId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

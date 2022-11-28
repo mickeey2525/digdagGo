@@ -49,7 +49,7 @@ func New(rawBaseURL, token string, logger *log.Logger) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) newRequest(ctx context.Context, method, spath string, params map[string]string, body io.Reader) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, method, spath string, params map[string]string, body io.Reader, header map[string]string) (*http.Request, error) {
 	reqURL := *c.BaseURL
 	reqURL.Path = path.Join(reqURL.Path, spath)
 	q := reqURL.Query()
@@ -65,8 +65,10 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, params ma
 		if err != nil {
 			return nil, err
 		}
+		for k, v := range header {
+			req.Header.Add(k, v)
+		}
 		req.Header.Set("Authorization", fmt.Sprintf("TD1 %s", c.Token))
-		req.Header.Add("User-Agent", userAgent)
 		req = req.WithContext(ctx)
 		return req, nil
 	case "PUT":
@@ -75,7 +77,9 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, params ma
 			return nil, err
 		}
 		req.Header.Set("Authorization", fmt.Sprintf("TD1 %s", c.Token))
-		req.Header.Add("Content-Type", "application/gzip")
+		for k, v := range header {
+			req.Header.Add(k, v)
+		}
 		req = req.WithContext(ctx)
 		return req, nil
 	case "DELETE":
@@ -84,7 +88,9 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, params ma
 			return nil, err
 		}
 		req.Header.Set("Authorization", fmt.Sprintf("TD1 %s", c.Token))
-		req.Header.Add("Content-Type", "application/gzip")
+		for k, v := range header {
+			req.Header.Add(k, v)
+		}
 		req = req.WithContext(ctx)
 		return req, nil
 	default:
@@ -165,14 +171,18 @@ func (c *Client) checkHttpResponseCode(res *http.Response) error {
 
 	var errs []string
 	var err error
-	switch res.StatusCode {
-	case 401:
-		return ErrUnauthorized
-	case 403:
-		return ErrForbidden
-	case 404:
-		return ErrNotFound
-	}
+	//switch res.StatusCode {
+	//case 400:
+	//	return ErrClient
+	//case 401:
+	//	return ErrUnauthorized
+	//case 403:
+	//	return ErrForbidden
+	//case 404:
+	//	return ErrNotFound
+	//default:
+	//	return err
+	//}
 
 	errs, err = decodeErrorPayload(res)
 	if err != nil {

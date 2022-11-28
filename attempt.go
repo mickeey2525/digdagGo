@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"time"
 )
@@ -62,11 +63,12 @@ func (c *Client) GetAttempts(ctx context.Context, projectName, workflowName, las
 	if includeRetried {
 		param["includeRetried"] = "true"
 	}
-	req, err := c.newRequest(ctx, "GET", "attempts", param, nil)
+	req, err := c.newRequest(ctx, "GET", "attempts", param, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.HTTPClient.Do(req)
+	fmt.Println(resp)
 	if err != nil {
 		return nil, err
 	}
@@ -82,38 +84,51 @@ func (c *Client) GetAttempts(ctx context.Context, projectName, workflowName, las
 	return &attemptList, nil
 }
 
-type mode int
+type Mode int
 
 const (
-	FROM mode = iota + 1
-	FAILED
+	FAILED Mode = iota
+	FROM
 )
 
 type resume struct {
-	attemptId int64
-	mode      mode
+	AttemptId interface{} `json:"attemptId"`
+	Mode      Mode        `json:"mode"`
 }
 
-type attemptBody struct {
-	sessionTime      time.Time
-	workflowId       int64
-	resume           resume
-	retryAttemptName string
-	params           interface{}
+type RetryAttemptBody struct {
+	SessionTime      time.Time   `json:"sessionTime"`
+	WorkflowId       int64       `json:"workflowId"`
+	Resume           resume      `json:"resume"`
+	RetryAttemptName string      `json:"retryAttemptName"`
+	Params           interface{} `json:"params"`
 }
 
-func (c *Client) PutAttempt(ctx context.Context, body attemptBody) error {
-	jsn, err := json.Marshal(body)
-	if err != nil {
-		return err
+type AttemptBody struct {
+	SessionTime time.Time   `json:"sessionTime"`
+	WorkflowId  int64       `json:"workflowId"`
+	Params      interface{} `json:"params"`
+}
+
+func (c *Client) StartAttempt(ctx context.Context, params interface{}, workflowID int64, sessionTime time.Time) (*Attempt, error) {
+	startAttemptBody := AttemptBody{
+		SessionTime: sessionTime,
+		WorkflowId:  workflowID,
+		Params:      params,
 	}
-	req, err := c.newRequest(ctx, "PUT", "attempts", nil, bytes.NewBuffer(jsn))
+	jsn, err := json.Marshal(startAttemptBody)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	fmt.Printf("%s\n", jsn)
+	header := map[string]string{"content-type": "application/json"}
+	req, err := c.newRequest(ctx, "PUT", "attempts", nil, bytes.NewBuffer(jsn), header)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -123,13 +138,69 @@ func (c *Client) PutAttempt(ctx context.Context, body attemptBody) error {
 	}(resp.Body)
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
-		return checkStatus
+		return nil, checkStatus
 	}
-	return nil
+	var attempt Attempt
+	err = c.decodeBody(resp, &attempt)
+	if err != nil {
+		return nil, err
+	}
+	return &attempt, nil
+}
+
+func (c *Client) RetryAttempt(ctx context.Context, mode Mode, params interface{}, workflowId int64, attemptId interface{}, sessionTime time.Time) (*Attempt, error) {
+	attemptNameUUID, err := uuid.NewUUID()
+	if err != nil {
+		return nil, err
+	}
+	if attemptId != nil {
+		attemptId = attemptId.(int64)
+	}
+	if attemptId == nil {
+		attemptId = ""
+	}
+	attemptNameUUIDString := attemptNameUUID.String()
+	resumeBody := RetryAttemptBody{
+		SessionTime:      sessionTime,
+		WorkflowId:       workflowId,
+		Params:           params,
+		Resume:           resume{AttemptId: attemptId, Mode: mode},
+		RetryAttemptName: attemptNameUUIDString,
+	}
+	jsn, err := json.Marshal(resumeBody)
+	if err != nil {
+		return nil, err
+	}
+	header := map[string]string{"content-type": "application/json"}
+	fmt.Printf("%s\n", jsn)
+	req, err := c.newRequest(ctx, "PUT", "attempts", nil, bytes.NewBuffer(jsn), header)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+	checkStatus := c.checkHttpResponseCode(resp)
+	if checkStatus != nil {
+		return nil, checkStatus
+	}
+	var attempt Attempt
+	err = c.decodeBody(resp, &attempt)
+	if err != nil {
+		return nil, err
+	}
+	return &attempt, nil
 }
 
 func (c *Client) GetAttempt(ctx context.Context, attemptId string) (*Attempt, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s", attemptId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s", attemptId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +221,7 @@ func (c *Client) GetAttempt(ctx context.Context, attemptId string) (*Attempt, er
 }
 
 func (c *Client) KillAttempt(ctx context.Context, attemptId string) error {
-	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("attempts/%s/kill", attemptId), nil, nil)
+	req, err := c.newRequest(ctx, "POST", fmt.Sprintf("attempts/%s/kill", attemptId), nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -166,7 +237,7 @@ func (c *Client) KillAttempt(ctx context.Context, attemptId string) error {
 }
 
 func (c *Client) ListAttempts(ctx context.Context, attemptId string) (*AttemptList, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s/retries", attemptId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s/retries", attemptId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +283,7 @@ type TasksList struct {
 }
 
 func (c *Client) ListTasks(ctx context.Context, attemptId string) (*TasksList, error) {
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s/tasks", attemptId), nil, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("attempts/%s/tasks", attemptId), nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

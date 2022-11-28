@@ -24,7 +24,7 @@ func (c *Client) getLogList(ctx context.Context, attemptId int, task string, dir
 		parameters["task"] = task
 	}
 	parameters["direct_download"] = strconv.FormatBool(direct)
-	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("logs/%d/files", attemptId), parameters, nil)
+	req, err := c.newRequest(ctx, "GET", fmt.Sprintf("logs/%d/files", attemptId), parameters, nil, nil)
 	if err != nil {
 		return nil, err
 	}
