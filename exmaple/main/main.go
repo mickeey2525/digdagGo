@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	digdaggo "digdagGo"
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -42,7 +44,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	fmt.Println(schedules)
+	js, err := json.Marshal(schedules)
+	fmt.Println(string(js))
 
 	projectWithId, err := client.GetProjectsWithID(ctx, project.ID)
 	if err != nil {
@@ -102,4 +105,16 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(invokeAttempt)
+	err = client.KillAttempt(ctx, invokeAttempt.ID)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	sched, err := client.GetSchedules(ctx, "")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(sched)
+	js, _ = json.Marshal(sched)
+	fmt.Println(string(js))
 }

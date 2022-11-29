@@ -93,15 +93,30 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, params ma
 		}
 		req = req.WithContext(ctx)
 		return req, nil
+	case "POST":
+		req, err := http.NewRequest(http.MethodPost, reqURL.String(), body)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("TD1 %s", c.Token))
+		for k, v := range header {
+			req.Header.Add(k, v)
+		}
+		req = req.WithContext(ctx)
+		return req, nil
 	default:
 		return nil, errors.New("you must specify method")
-
 	}
 
 }
 
 func (c *Client) decodeBody(resp *http.Response, out interface{}) error {
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}(resp.Body)
 	decoder := json.NewDecoder(resp.Body)
 	return decoder.Decode(out)
 }
@@ -115,7 +130,12 @@ func (c *Client) unarchive(dst string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	defer gzr.Close()
+	defer func(gzr *gzip.Reader) {
+		err := gzr.Close()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}(gzr)
 	tr := tar.NewReader(gzr)
 	for {
 		header, err := tr.Next()
@@ -136,7 +156,7 @@ func (c *Client) unarchive(dst string, r io.Reader) error {
 		// check the file type
 		switch header.Typeflag {
 
-		// if its a dir and it doesn't exist create it
+		// If it doesn't exist, create it
 		case tar.TypeDir:
 			if _, err := os.Stat(target); err != nil {
 				if err := os.MkdirAll(target, 0755); err != nil {
@@ -158,7 +178,10 @@ func (c *Client) unarchive(dst string, r io.Reader) error {
 
 			// manually close here after each file operation; defering would cause each file close
 			// to wait until all operations have completed.
-			f.Close()
+			err = f.Close()
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -171,18 +194,6 @@ func (c *Client) checkHttpResponseCode(res *http.Response) error {
 
 	var errs []string
 	var err error
-	//switch res.StatusCode {
-	//case 400:
-	//	return ErrClient
-	//case 401:
-	//	return ErrUnauthorized
-	//case 403:
-	//	return ErrForbidden
-	//case 404:
-	//	return ErrNotFound
-	//default:
-	//	return err
-	//}
 
 	errs, err = decodeErrorPayload(res)
 	if err != nil {

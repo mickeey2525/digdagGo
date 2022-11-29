@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -479,9 +480,10 @@ func (c *Client) GetProjectWorkflows(ctx context.Context, projectId, revision, w
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			log.Fatalln(err)
 		}
 	}(resp.Body)
+
 	checkStatus := c.checkHttpResponseCode(resp)
 	if checkStatus != nil {
 		return nil, checkStatus
